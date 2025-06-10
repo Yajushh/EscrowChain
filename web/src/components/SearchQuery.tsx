@@ -1,0 +1,94 @@
+import axios from "axios";
+import Fuse from "fuse.js";
+import { useEffect, useMemo, useState } from "react";
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  role: string;
+  balance: number;
+  createdAt: string;
+}
+
+interface AxiosResponse {
+  message: string;
+  users: User[];
+}
+
+export default function SearchQuery() {
+  const [query, setQuery] = useState<string>("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [showDropdown, setShowDropdown] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get<AxiosResponse>(
+          "http://localhost:4000/api/user"
+        );
+        if (res.status === 200) {
+          setUsers(res.data.users);
+        } else {
+          console.log("Unable to fetch users");
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const fuse = new Fuse(users, {
+    keys: ["name"],
+    threshold: 0.3,
+  });
+
+  const results = useMemo(() => {
+    if (!query) return [];
+    return fuse.search(query).map((result) => result.item);
+  }, [query, users]);
+
+  const handleSelect = (name: string) => {
+    setQuery(name);
+    setShowDropdown(false);
+  };
+
+  return (
+    <div className="relative w-full">
+      <input
+        type="text"
+        placeholder="Search by name"
+        className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setShowDropdown(true);
+        }}
+        onFocus={() => setShowDropdown(true)}
+      />
+
+      {showDropdown && results.length > 0 && (
+        <ul className="absolute mt-1 w-full z-20 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {results.map((user) => (
+            <li
+              key={user.id}
+              className="px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 cursor-pointer transition"
+              onClick={() => handleSelect(user.name)}
+            >
+              {user.name}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {showDropdown && query && results.length === 0 && (
+        <ul className="absolute mt-1 w-full z-20 bg-white border border-gray-200 rounded-md shadow-md">
+          <li className="px-4 py-2 text-sm text-gray-500">No matches found.</li>
+        </ul>
+      )}
+    </div>
+  );
+}
