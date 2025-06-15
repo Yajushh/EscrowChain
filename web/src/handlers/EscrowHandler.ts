@@ -14,7 +14,7 @@ export interface EscrowReleaseResponse {
 
 export async function EscrowRelease(
   endpoint: string,
-  onSuccess: (date: EscrowReleaseResponse | null) => void
+  onSuccess: (data: EscrowReleaseResponse | null) => void
 ) {
   try {
     const res = await axios.post<EscrowReleaseResponse>(

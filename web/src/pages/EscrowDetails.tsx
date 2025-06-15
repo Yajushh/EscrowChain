@@ -5,19 +5,103 @@ import axios from "axios";
 import { AuthStore } from "../store/authStore";
 import { EscrowRefund, EscrowRelease } from "../handlers/EscrowHandler";
 import { fetchUser } from "../handlers/UserHandler";
+import { useSocket } from "../hooks/useSocket";
+import type {
+  EscrowFundedPayload,
+  EscrowRefundedPayload,
+  EscrowReleasedPayload,
+} from "../utils/Payload";
 
 export default function EscrowDetails() {
-  const { id } = useParams();
-  const endpoint = `http://localhost:4000/api/escrows/${id}`;
-
-  const [data, setData] = useState<EscrowByIdResponse | null>(null);
-  const [status, setStatus] = useState<string>("");
-
+  const socket = useSocket();
+  const { id: escrowId } = useParams<{ id: string }>();
+  const endpoint = `http://localhost:4000/api/escrows/${escrowId}`;
   const role = AuthStore((state) => state.user?.role);
   const isAdmin = role === "ADMIN" ? true : false;
 
+  const [data, setData] = useState<EscrowByIdResponse | null>(null);
+
   const [payerName, setPayerName] = useState<string>("");
   const [payeeName, setPayeeName] = useState<string>("");
+
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleRelease = () => {
+    if (!escrowId) return;
+    setLoading(true);
+    EscrowRelease(endpoint, (data) => {
+      setLoading(false);
+      if (data) {
+        setData(
+          (prev) =>
+            prev && {
+              ...prev,
+              status: data.status,
+              updatedAt: data.updatedAt,
+              balance: data.balance,
+            }
+        );
+      }
+    });
+  };
+  const handleRefund = () => {
+    if (!escrowId) return;
+    setLoading(true);
+    EscrowRefund(endpoint, (data) => {
+      setLoading(false);
+      if (data) {
+        setData(
+          (prev) =>
+            prev && {
+              ...prev,
+              status: data.status,
+              updatedAt: data.updatedAt,
+              balance: data.balance,
+            }
+        );
+      }
+    });
+  };
+
+  useEffect(() => {
+    socket.emit("joinEscrow", { escrowId });
+    socket.on("escrowFunded", (data: EscrowFundedPayload) => {
+      setData(
+        (prev) =>
+          prev && {
+            ...prev,
+            status: "FUNDED",
+            updatedAt: data.fundedAt,
+          }
+      );
+    });
+    socket.on("escrowReleased", (data: EscrowReleasedPayload) => {
+      setData(
+        (prev) =>
+          prev && {
+            ...prev,
+            status: "RELEASED",
+            updatedAt: data.releasedAt,
+          }
+      );
+    });
+    socket.on("escrowRefunded", (data: EscrowRefundedPayload) => {
+      setData(
+        (prev) =>
+          prev && {
+            ...prev,
+            status: "REFUNDED",
+            updatedAt: data.refundedAt,
+          }
+      );
+    });
+
+    return () => {
+      socket.off("escrowFunded");
+      socket.off("escrowReleased");
+      socket.off("escrowRefunded");
+    };
+  }, [escrowId, socket]);
 
   useEffect(() => {
     const fetchEscrow = async () => {
@@ -28,7 +112,6 @@ export default function EscrowDetails() {
         if (res.status === 200) {
           console.log(res.data);
           setData(res.data);
-          setStatus(res.data.status);
         }
       } catch (error) {
         console.log(error);
@@ -36,7 +119,7 @@ export default function EscrowDetails() {
     };
 
     fetchEscrow();
-  }, [id]);
+  }, [escrowId, endpoint]);
 
   useEffect(() => {
     const fetchUsers = () => {
@@ -48,100 +131,99 @@ export default function EscrowDetails() {
     };
     fetchUsers();
   }, [payerName, payeeName, data?.payerId, data?.payeeId]);
-
+  if (!escrowId) return <p>Loading...</p>;
   return (
-    <div className="flex min-h-screen w-full bg-gray-50 px-8 py-10 space-x-8">
-      <div className="w-1/3 space-y-6">
-        <div className="space-y-4">
-          <h2 className="text-3xl font-bold text-indigo-700">Escrow Details</h2>
-          <ul className="text-gray-800 text-lg leading-relaxed space-y-2">
-            <li>
-              <span className="font-semibold">Escrow ID:</span> {data?.id}
-            </li>
-            <li>
-              <span className="font-semibold">Payer:</span> {payerName}
-            </li>
-            <li>
-              <span className="font-semibold">Payee:</span> {payeeName}
-            </li>
-            <li>
-              <span className="font-semibold">Status:</span> {status}
-            </li>
-            <li>
-              <span className="font-semibold">Currency:</span> {data?.currency}
-            </li>
-            <li>
-              <span className="font-semibold">Amount:</span> {data?.amount}
-            </li>
-            <li>
-              <span className="font-semibold">Current Escrow Balance:</span>{" "}
-              {data?.balance}
-            </li>
-          </ul>
-        </div>
+    <div className=" flex flex-col lg:flex-row min-h-screen w-full bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-100 p-6 gap-6">
+      {/* Left Panel */}
+      <aside className="lg:w-1/3 space-y-6 p-6 rounded-xl bg-gray-100 dark:bg-gray-900 shadow-md">
+        <h2 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+          Escrow Details
+        </h2>
+        <ul className="text-md space-y-2">
+          <li>
+            <span className="font-semibold">ID:</span> {data?.id}
+          </li>
+          <li>
+            <span className="font-semibold">Payer:</span> {payerName}
+          </li>
+          <li>
+            <span className="font-semibold">Payee:</span> {payeeName}
+          </li>
+          <li>
+            <span className="font-semibold">Status:</span> {data?.status}
+          </li>
+          <li>
+            <span className="font-semibold">Currency:</span> {data?.currency}
+          </li>
+          <li>
+            <span className="font-semibold">Amount:</span> {data?.amount}
+          </li>
+          <li>
+            <span className="font-semibold">Balance:</span> {data?.balance}
+          </li>
+        </ul>
 
-        <div className="space-x-4 pt-4">
-          <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition">
+        <div className="pt-4 space-y-3">
+          <button className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-md font-semibold">
             Raise Conflict
           </button>
-          <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition">
-            Mark as Completed
+          <button className="w-full py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-semibold">
+            Mark Completed
           </button>
           {isAdmin && (
-            <div className="pt-6 space-y-3">
+            <>
               <button
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition"
-                onClick={() => {
-                  EscrowRelease(endpoint, (data) =>
-                    setStatus(data?.status as string)
-                  );
-                }}
+                onClick={handleRelease}
+                disabled={loading}
+                className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold"
               >
                 Release Funds
               </button>
               <button
-                className="w-full px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition"
-                onClick={() => {
-                  EscrowRefund(endpoint, (data) =>
-                    setStatus(data?.status as string)
-                  );
-                }}
+                onClick={handleRefund}
+                disabled={loading}
+                className="w-full py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md font-semibold"
               >
                 Refund
               </button>
-              <button className="w-full px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-lg shadow-md transition">
+              <button className="w-full py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-md font-semibold">
                 Close Escrow
               </button>
-            </div>
+            </>
           )}
         </div>
-      </div>
+      </aside>
 
-      <div className="w-2/3 bg-white rounded-xl shadow-lg flex flex-col ">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-xl font-bold text-gray-700">Escrow Chat</h3>
+      {/* Right Panel */}
+      <main className="lg:w-2/3 flex flex-col bg-gray-50 dark:bg-gray-900 rounded-xl shadow-md h-[calc(100vh-3rem)] overflow-hidden">
+        {/* Chat Header */}
+        <div className="p-4 border-b border-gray-300 dark:border-gray-700 shrink-0">
+          <h3 className="text-xl font-semibold">Escrow Chat</h3>
         </div>
 
+        {/* Chat Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="bg-gray-100 p-3 rounded-lg w-fit max-w-[70%] overflow-y-hidden  ">
+          <div className="bg-gray-200 dark:bg-gray-700 px-4 py-3 rounded-lg w-fit max-w-[70%]">
             Hi, I’ve completed my part of the task.
           </div>
-          <div className="bg-indigo-100 p-3 rounded-lg w-fit max-w-[70%] self-end ml-auto">
+          <div className="bg-indigo-200 dark:bg-indigo-600 px-4 py-3 rounded-lg w-fit max-w-[70%] self-end ml-auto">
             Noted! I’ll mark it completed soon.
           </div>
+          {/* More messages dynamically here */}
         </div>
 
-        <div className="border-t border-gray-200 p-4 flex items-center space-x-2">
+        {/* Chat Input */}
+        <div className="p-4 border-t border-gray-300 dark:border-gray-700 flex items-center gap-2 shrink-0">
           <input
             type="text"
             placeholder="Type your message..."
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition">
+          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-semibold">
             Send
           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,22 +1,17 @@
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
-export function useSocket() {
-  const socketRef = useRef<Socket>();
-  useEffect(() => {
-    socketRef.current = io("http://localhost:4000", { withCredentials: true });
-    socketRef.current.on("connect", () => {
-      console.log(`Socket connection established: ${socketRef.current?.id}`);
-    });
-    socketRef.current.on("connect_error", (err) => {
-      console.log(
-        `Socket connection error for socket: ${socketRef.current?.id} with error: ${err}`
-      );
-    });
+export function useSocket(): Socket {
+  const socketRef = useRef<Socket>(
+    io("http://localhost:4000", { withCredentials: true })
+  );
 
+  useEffect(() => {
+    const socket = socketRef.current;
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
     };
   }, []);
-  return socketRef.current!;
+
+  return socketRef.current;
 }

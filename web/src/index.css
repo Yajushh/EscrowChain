@@ -5,3 +5,4 @@ body {
   @apply font-sans;
   @apply font-sans text-base tracking-normal leading-relaxed text-gray-700;
 }
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap");
