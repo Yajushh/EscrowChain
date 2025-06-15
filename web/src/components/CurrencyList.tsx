@@ -1,6 +1,10 @@
 import { useState } from "react";
 
-export default function CurrencyList() {
+interface CurrencyListProps {
+  onSelect: (currency: string) => void;
+}
+
+export default function CurrencyList({ onSelect }: CurrencyListProps) {
   const currency = ["USD", "INR"];
   const [curr, setCurr] = useState<string>("");
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
@@ -24,6 +28,7 @@ export default function CurrencyList() {
               onClick={() => {
                 setShowDropdown(false);
                 setCurr(c);
+                onSelect(c);
               }}
             >
               {c}

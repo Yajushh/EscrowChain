@@ -2,5 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 body {
-  @apply font-bebas;
+  @apply font-sans;
+  @apply font-sans text-base tracking-normal leading-relaxed text-gray-700;
 }

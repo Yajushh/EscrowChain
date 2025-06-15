@@ -1,15 +1,64 @@
 import { useState } from "react";
 import SearchQuery from "./SearchQuery";
-import { useSocket } from "../hooks/useSocket";
+// import { useSocket } from "../hooks/useSocket";
 import CurrencyList from "./CurrencyList";
+import axios from "axios";
+import type { CreateEscrowPayload } from "../utils/Payload";
+import { AuthStore } from "../store/authStore";
+import { useNavigate } from "react-router-dom";
+
+interface EscrowResponse {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  status: string;
+  amount: number;
+  balance: number;
+  currency: string;
+  payerId: string;
+  payeeId: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  role: string;
+  balance: number;
+  createdAt: string;
+}
 
 export default function EscrowCard() {
-  const socket = useSocket();
-  const [payeeId, setPayeeId] = useState<string>("");
+  // const socket = useSocket();
+  const navigate = useNavigate();
+  const currentUser = AuthStore((state) => state.user);
+  const [user, setUser] = useState<User>();
+  const [currency, setCurrency] = useState<string>("");
+  const [amount, setAmount] = useState<number>(0);
   const handleSubmit = async () => {
     const endpoint = "http://localhost:4000/api/escrows";
+    try {
+      const payload: CreateEscrowPayload = {
+        payerId: currentUser?.id as string,
+        payeeId: user?.id as string,
+        amount,
+        currency,
+      };
 
-    return console.log("done");
+      console.log(payload);
+      const res = await axios.post<EscrowResponse>(endpoint, payload, {
+        withCredentials: true,
+      });
+      if (res.status === 201) {
+        console.log(res.data);
+        const id = res.data.id;
+        navigate(`/escrow/${id}`);
+        return;
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
   return (
     <div className="bg-white rounded-2xl shadow-2xl max-w-[600px] w-full mx-auto border border-gray-200 overflow-hidden">
@@ -21,13 +70,13 @@ export default function EscrowCard() {
         <div className="border-t border-gray-200 pt-4 space-y-4">
           <div className="flex flex-col space-y-2">
             <label className="text-sm text-gray-600 font-medium">Payee</label>
-            <SearchQuery />
+            <SearchQuery onSelect={(user) => setUser(user)} />
           </div>
           <div className="flex flex-col space-y-2">
             <label className="text-sm text-gray-600 font-medium">
               Currency
             </label>
-            <CurrencyList />
+            <CurrencyList onSelect={(value) => setCurrency(value)} />
           </div>
 
           <div className="flex flex-col space-y-2">
@@ -38,6 +87,7 @@ export default function EscrowCard() {
               type="number"
               placeholder="Enter amount"
               className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              onChange={(e) => setAmount(parseInt(e.target.value))}
             />
           </div>
         </div>

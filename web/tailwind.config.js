@@ -4,7 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        bebas: ['"Bebas Neue"', "cursive"],
+        sans: ["Francois One", "sans-serif"], // for general use
+        heading: ["Bebas Neue", "sans-serif"], // if you're using Bebas for titles
       },
     },
   },

@@ -2,6 +2,10 @@ import axios from "axios";
 import Fuse from "fuse.js";
 import { useEffect, useMemo, useState } from "react";
 
+interface SearchQueryProps {
+  onSelect: (user: User) => void;
+}
+
 interface User {
   id: string;
   email: string;
@@ -17,7 +21,7 @@ interface AxiosResponse {
   users: User[];
 }
 
-export default function SearchQuery() {
+export default function SearchQuery({ onSelect }: SearchQueryProps) {
   const [query, setQuery] = useState<string>("");
   const [users, setUsers] = useState<User[]>([]);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
@@ -68,6 +72,15 @@ export default function SearchQuery() {
           setShowDropdown(true);
         }}
         onFocus={() => setShowDropdown(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (results.length > 0) {
+              setQuery(results[0].name);
+              setShowDropdown(false);
+            }
+          }
+        }}
       />
 
       {showDropdown && results.length > 0 && (
@@ -76,7 +89,10 @@ export default function SearchQuery() {
             <li
               key={user.id}
               className="px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 cursor-pointer transition"
-              onClick={() => handleSelect(user.name)}
+              onClick={() => {
+                handleSelect(user.name);
+                onSelect(user);
+              }}
             >
               {user.name}
             </li>

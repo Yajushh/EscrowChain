@@ -24,13 +24,20 @@ export default function Navbar() {
   return (
     <nav className="bg-slate-50 shadow-md px-4 py-5 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <a href="/" className="text-2xl text-indigo-700 italic font-bold ">
+        <a
+          href="/"
+          className="text-2xl text-indigo-700 italic font-bold font-heading uppercase tracking-wider
+"
+        >
           Escrow
         </a>
 
-        <div className="hidden md:flex space-x-6 items-center">
-          <a href="#" className="text-gray-600 hover:text-black transition">
-            Home
+        <div className="hidden md:flex space-x-6 items-center font-bold font-sans uppercase tracking-wider text-md">
+          <a
+            href="/escrow"
+            className="text-indigo-900 hover:text-black transition"
+          >
+            Create Escrow
           </a>
           <a href="#" className="text-gray-600 hover:text-black transition">
             About
